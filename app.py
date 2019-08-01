@@ -18,49 +18,59 @@ THIS_TWITTER_URL = "https://twitter.com/thisisgamecom"
 STEAM_RANK_URL = "https://store.steampowered.com/stats/"
 GANETRICS_RANK_URL = "http://www.gametrics.com/Rank/Rank02.aspx"
 
-bot = commands.Bot(command_prefix='$', description='keyword')
+bot = commands.Bot(command_prefix='$', description="")
 
 @bot.command()
 async def steamRank(ctx):
+    """스팀 현재 접속자 순위"""
     await steamRankScraping(ctx)
 
 @bot.command()
 async def gametricsRank(ctx):
+    """게임트릭스 PC방 게임사용량 순위"""
     await gametricsRankScraping(ctx)
 
 @bot.command()
 async def twitter(ctx):
+    """모든 트위터 정보조회"""
     await invenTwitterScraping(ctx)
     await thisTwitterScraping(ctx)
 
 @bot.command()
 async def invenTwitter(ctx):
+    """인벤 트위터 정보조회"""
     await invenTwitterScraping(ctx)
 
 @bot.command()
 async def thisgmaeTwitter(ctx):
+    """디스이즈게임 트위터 정보조회"""
     await thisTwitterScraping(ctx)
 
 @bot.command()
 async def inven(ctx):
+    """인벤 게임뉴스"""
     await invenScraping(ctx)
 
 @bot.command()
 async def thisgame(ctx):
+    """디스이즈 게임뉴스"""
     await thisgameScraping(ctx)
 
 @bot.command()
 async def ruliweb(ctx):
+    """루리웹 유저정보"""
     await ruliwebScraping(ctx)
 
 @bot.command()
 async def news(ctx):
+    """모든 뉴스 정보조회(네이버는 속도가 느려 제외됨)"""
     await invenScraping(ctx)
     await thisgameScraping(ctx)
     await ruliwebScraping(ctx)
 
 @bot.command()
 async def naver(ctx):
+    """네이버 게임뉴스"""
     await naverScraping(ctx)
 
 async def thisgameScraping(ctx):
@@ -242,19 +252,30 @@ async def on_ready():
     print("id:", bot.user.id)
     print('=====================')
 
-try:
-    jsonData = open("./manifest.json").read()
-    setting = json.loads(jsonData)
 
-    MAX_DISPLAY = setting["news-display"]
-    TWITTER_MAX_DISPLAY = setting["twitter-display"]
-    RANK_LIMIT = setting["rank-display"]
+def runApp():
+    try:
+        jsonData = open("./manifest.json", 'r', encoding='UTF-8').read()
+        setting = json.loads(jsonData)
 
-    bot.run(setting["bot-token"])
-except OSError:
-    print("폴더에 manifest.json 파일이 없습니다.")
-except KeyError as error:
-    print("manifest오류! 다시 설정해주세요")
+        global MAX_DISPLAY
+        MAX_DISPLAY = setting["news-display"]
+        global TWITTER_MAX_DISPLAY
+        TWITTER_MAX_DISPLAY = setting["twitter-display"]
+        global RANK_LIMIT
+        RANK_LIMIT = setting["rank-display"]
+
+        bot.description = setting["description"]
+        bot.run(setting["bot-token"])
+    except OSError:
+        print("폴더에 manifest.json 파일이 없습니다.")
+    except KeyError as error:
+        print("manifest오류! 다시 설정해주세요")
+
+if __name__ == "__main__":
+    runApp()
+
+
 
 # testing code
 
