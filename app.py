@@ -11,6 +11,10 @@ THIS_NEWS_URL = "http://www.thisisgame.com/webzine/news/nboard/4/"
 NAVER_NEWS_URL = "https://sports.news.naver.com/esports/news/index.nhn?isphoto=N&rc=N"
 MAX_DISPLAY = 4
 
+INVEN_TWITTER_URL = "https://twitter.com/inventeam"
+THIS_TWITTER_URL = "https://twitter.com/thisisgamecom"
+TWITTER_MAX_DISPLAY = 2
+
 bot = commands.Bot(command_prefix='$', description='keyword')
 
 @bot.command()
@@ -19,7 +23,16 @@ async def rank(ctx):
 
 @bot.command()
 async def twitter(ctx):
-    print('asd')
+    await invenTwitterScraping(ctx)
+    await thisTwitterScraping(ctx)
+
+@bot.command()
+async def invenTwitter(ctx):
+    await invenTwitterScraping(ctx)
+
+@bot.command()
+async def thisgmaeTwitter(ctx):
+    await thisTwitterScraping(ctx)
 
 @bot.command()
 async def inven(ctx):
@@ -130,6 +143,30 @@ async def newsTableBodyParsing(url, domInfo):
 
     return newsBody
 
+async def invenTwitterScraping(ctx):
+    embed = discord.Embed(title="인벤", description="인벤의 최신 트위터 소식 {0}개를 보여줍니다.".format(TWITTER_MAX_DISPLAY), color=0x7abe42)
+    await twitterScraping(THIS_TWITTER_URL, "인벤 트위터", embed)
+    await ctx.send(embed=embed)
+
+async def thisTwitterScraping(ctx):
+    embed = discord.Embed(title="디스이즈 게임", description="디스이즈 게임의 최신 트위터 소식 {0}개를 보여줍니다.".format(TWITTER_MAX_DISPLAY), color=0x3c404c)
+    await twitterScraping(INVEN_TWITTER_URL, "디스이즈 게임 트위터", embed)
+    await ctx.send(embed=embed)
+
+async def twitterScraping(url, title, embed):
+    result = ""
+    page = await getPage(url)
+    timeLine = page.find("div", {"id": "timeline"})
+    items = timeLine.findAll("li", {"class": "js-stream-item"})
+    for index, item in enumerate(items):
+        if index >= TWITTER_MAX_DISPLAY:
+            break
+        content = item.find("div", {"class": "content"})
+        TextContainer = content.find("div", {"class": "js-tweet-text-container"})
+        contentText = TextContainer.find("p")
+        result += contentText.text + "\n\n"
+    embed.add_field(name=title, value=result, inline=True)
+
 @bot.event
 async def on_ready():
     print('=====================')
@@ -138,12 +175,10 @@ async def on_ready():
     print("id:", bot.user.id)
     print('=====================')
 
-bot.run('<bot-token>')
+bot.run('')
 
 # testing code
-'''
-import asyncio
-loop = asyncio.get_event_loop()
-loop.run_until_complete(naver())
-loop.close()
-'''
+#import asyncio
+#loop = asyncio.get_event_loop()
+#loop.run_until_complete(invenTwitterScraping())
+#loop.close()
