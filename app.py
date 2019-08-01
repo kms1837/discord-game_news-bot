@@ -59,6 +59,10 @@ async def news(ctx):
     await thisgameScraping(ctx)
     await ruliwebScraping(ctx)
 
+@bot.command()
+async def naver(ctx):
+    await naverScraping(ctx)
+
 async def thisgameScraping(ctx):
     print('thisgame')
     embed = discord.Embed(title="디스이즈 게임", description="디스이즈 게임의 최신 뉴스 {0}개를 보여줍니다.".format(MAX_DISPLAY), color=0x3c404c)
@@ -125,18 +129,26 @@ async def invenFeedParsing(url, embed):
 
     embed.add_field(name=title.text, value=result, inline=True)
 
-async def naver():
+async def naverScraping(ctx):
     print("naver")
-    #embed = discord.Embed(title="네이버", description="네이버의 최신 게임 포스트 {0}개를 보여줍니다.".format(MAX_DISPLAY), color=0x7abe42)
-    fieldValue = ""
+    embed = discord.Embed(title="네이버", description="네이버의 최신 뉴스 {0}개를 보여줍니다.".format(MAX_DISPLAY), color=0x03cf5d)
+    result = ""
 
     # 네이버 뉴스는 ul li 방식으로 게시판이 구현됨 dom구조가 많이 꼬여있어서 코드도 좀 길어짐
-    # 서버사이드에서 모두 렌더링하지 않고있어 다른 크롤링 방식이 필요함
+    # 서버사이드에서 모두 렌더링하지 않고있어 다른 크롤링 방식이 사용됨
     page = await getPhantomPage(NAVER_NEWS_URL)
     newsContent = page.find("div", {"id": "container"})
     newsCenter = newsContent.find("div", {"class": "newscenter"})
-    newsList = newsCenter.find("div", {"class": "content"})
-    print(newsList)
+    newsList = newsCenter.find("div", {"class": "news_list"})
+    items = newsList.select("li")
+    for index, item in enumerate(items):
+        if index >= MAX_DISPLAY:
+            break
+        title = item.select(".text a")[0]
+        result += "[{0}](<{1}>)\n".format(title.text, "https://sports.news.naver.com" + title["href"])
+    
+    embed.add_field(name=title.text, value=result, inline=True)
+    await ctx.send(embed=embed)
 
 async def getPage(url):
     request = requests.get(url)
