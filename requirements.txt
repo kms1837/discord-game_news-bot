@@ -1,0 +1,5 @@
+beautifulSoup4
+requests
+discord
+lxml
+selenium
