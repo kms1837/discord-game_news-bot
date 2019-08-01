@@ -1,5 +1,6 @@
 from discord.ext import commands
 from bs4 import BeautifulSoup
+from selenium import webdriver
 import discord
 import requests
 import json
@@ -10,17 +11,22 @@ INVEN_NEWS_URL1 = "http://feeds.feedburner.com/inven/sclass/24" #인벤 게임�
 INVEN_NEWS_URL2 = "http://feeds.feedburner.com/inven/sclass/25" #인벤 게임뉴스 - 기획기사
 THIS_NEWS_URL = "http://www.thisisgame.com/webzine/news/nboard/4/"
 NAVER_NEWS_URL = "https://sports.news.naver.com/esports/news/index.nhn?isphoto=N&rc=N"
-MAX_DISPLAY = 4
 
 INVEN_TWITTER_URL = "https://twitter.com/inventeam"
 THIS_TWITTER_URL = "https://twitter.com/thisisgamecom"
-TWITTER_MAX_DISPLAY = 2
+
+STEAM_RANK_URL = "https://store.steampowered.com/stats/"
+GANETRICS_RANK_URL = "http://www.gametrics.com/Rank/Rank02.aspx"
 
 bot = commands.Bot(command_prefix='$', description='keyword')
 
 @bot.command()
-async def rank(ctx):
-    print('asd')
+async def steamRank(ctx):
+    await steamRankScraping(ctx)
+
+@bot.command()
+async def gametricsRank(ctx):
+    await gametricsRankScraping(ctx)
 
 @bot.command()
 async def twitter(ctx):
@@ -126,7 +132,7 @@ async def naver():
 
     # 네이버 뉴스는 ul li 방식으로 게시판이 구현됨 dom구조가 많이 꼬여있어서 코드도 좀 길어짐
     # 서버사이드에서 모두 렌더링하지 않고있어 다른 크롤링 방식이 필요함
-    page = await getPage(NAVER_NEWS_URL)
+    page = await getPhantomPage(NAVER_NEWS_URL)
     newsContent = page.find("div", {"id": "container"})
     newsCenter = newsContent.find("div", {"class": "newscenter"})
     newsList = newsCenter.find("div", {"class": "content"})
@@ -137,6 +143,13 @@ async def getPage(url):
     page = BeautifulSoup(request.text, "html.parser")
     return page
 
+async def getPhantomPage(url):
+    driver = webdriver.PhantomJS('./phantomjs-2.1.1-windows/bin/phantomjs.exe')
+    driver.get(url)
+    page = BeautifulSoup(driver.page_source, "html.parser")
+    driver.close()
+    return page
+
 async def newsTableBodyParsing(url, domInfo):
     page = await getPage(url)
     newsTable = page.find("div", domInfo)
@@ -145,11 +158,13 @@ async def newsTableBodyParsing(url, domInfo):
     return newsBody
 
 async def invenTwitterScraping(ctx):
+    print('invenTwitter')
     embed = discord.Embed(title="인벤", description="인벤의 최신 트위터 소식 {0}개를 보여줍니다.".format(TWITTER_MAX_DISPLAY), color=0x7abe42)
     await twitterScraping(THIS_TWITTER_URL, "인벤 트위터", embed)
     await ctx.send(embed=embed)
 
 async def thisTwitterScraping(ctx):
+    print('thisTwitter')
     embed = discord.Embed(title="디스이즈 게임", description="디스이즈 게임의 최신 트위터 소식 {0}개를 보여줍니다.".format(TWITTER_MAX_DISPLAY), color=0x3c404c)
     await twitterScraping(INVEN_TWITTER_URL, "디스이즈 게임 트위터", embed)
     await ctx.send(embed=embed)
@@ -159,6 +174,7 @@ async def twitterScraping(url, title, embed):
     page = await getPage(url)
     timeLine = page.find("div", {"id": "timeline"})
     items = timeLine.findAll("li", {"class": "js-stream-item"})
+
     for index, item in enumerate(items):
         if index >= TWITTER_MAX_DISPLAY:
             break
@@ -167,6 +183,44 @@ async def twitterScraping(url, title, embed):
         contentText = TextContainer.find("p")
         result += contentText.text + "\n\n"
     embed.add_field(name=title, value=result, inline=True)
+
+async def steamRankScraping(ctx):
+    embed = discord.Embed(title="스팀 접속자 랭크", description="현재 접속자 순위를 {0}위까지 보여줍니다.".format(RANK_LIMIT), color=0x3c404c)
+    page = await getPage(STEAM_RANK_URL)
+    detailStats = page.find("div", {"id": "detailStats"})
+    items = detailStats.findAll("tr", {"class": "player_count_row"})
+
+    for index, item in enumerate(items):
+        if index >= RANK_LIMIT:
+            break
+        tds = item.findAll("td")
+        gameName = item.find("a", {"class": "gameLink"})
+        title = "{0}등 {1}".format(index+1, gameName.text)
+        info = "현재 플레이어: {0} 오늘 최고기록: {1}".format(tds[0].find("span").text, tds[1].find("span").text)
+        embed.add_field(name=title, value=info, inline=True)
+    await ctx.send(embed=embed)
+
+async def gametricsRankScraping(ctx):
+    #사이트가 오래되서 div에 class나 id가 거의 안되있다.
+    embed = discord.Embed(title="게임트릭스 PC방 게임사용량 순위", description="게임사용량 순위를 {0}위까지 보여줍니다.".format(RANK_LIMIT), color=0x3c404c)
+    page = await getPhantomPage(GANETRICS_RANK_URL)
+    panel = page.find("div", {"id": "UpdatePanel"})
+    rankContainer = panel.select("tbody > tr > td")[2]
+    rankTable = rankContainer.select("tbody > tr")[8]
+    rankContent = rankTable.select("tbody > tr")[1]
+    items = rankContent.select("table")
+
+    for index, item in enumerate(items):
+        if index >= RANK_LIMIT:
+            break
+        row = item.select("tbody > tr")[0]
+        infoItems = row.select("td")
+        title = "{0}등 {1}".format(index+1, infoItems[3].find("a").text)
+        percent = infoItems[5].text.replace(" ", "").replace("\t", "").replace("\n", "")
+        info = "사용시간 점유율: {0}".format(percent)
+        embed.add_field(name=title, value=info, inline=True)
+
+    await ctx.send(embed=embed)
 
 @bot.event
 async def on_ready():
@@ -179,14 +233,20 @@ async def on_ready():
 try:
     jsonData = open("./manifest.json").read()
     setting = json.loads(jsonData)
+
+    MAX_DISPLAY = setting["news-display"]
+    TWITTER_MAX_DISPLAY = setting["twitter-display"]
+    RANK_LIMIT = setting["rank-display"]
+
     bot.run(setting["bot-token"])
 except OSError:
     print("폴더에 manifest.json 파일이 없습니다.")
 except KeyError as error:
-    print("manifest에 bot-token항목이 있는지 확인해주세요")
+    print("manifest오류! 다시 설정해주세요")
 
 # testing code
+
 #import asyncio
 #loop = asyncio.get_event_loop()
-#loop.run_until_complete(invenTwitterScraping())
+#loop.run_until_complete(naver())
 #loop.close()
