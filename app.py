@@ -2,6 +2,7 @@ from discord.ext import commands
 from bs4 import BeautifulSoup
 import discord
 import requests
+import json
 
 RULIWEB_NEWS_URL1 = "http://bbs.ruliweb.com/news/board/1003" # PC
 RULIWEB_NEWS_URL2 = "http://bbs.ruliweb.com/news/board/1001" # 콘솔
@@ -175,7 +176,14 @@ async def on_ready():
     print("id:", bot.user.id)
     print('=====================')
 
-bot.run('')
+try:
+    jsonData = open("./manifest.json").read()
+    setting = json.loads(jsonData)
+    bot.run(setting["bot-token"])
+except OSError:
+    print("폴더에 manifest.json 파일이 없습니다.")
+except KeyError as error:
+    print("manifest에 bot-token항목이 있는지 확인해주세요")
 
 # testing code
 #import asyncio
